@@ -2,6 +2,7 @@ package vaultengine
 
 import (
 	"fmt"
+	vault "github.com/hashicorp/vault/api"
 )
 
 // SecretWrite is used for writing data to a Vault instance
@@ -49,4 +50,53 @@ func (client *Client) SecretWrite(path string, data map[string]interface{}) {
 			fmt.Printf("Secret successfully written to Vault [%s] using path [%s]\n", client.addr, path)
 		}
 	}
+}
+
+// Create k8s secrets mount v2
+func (client *Client) EnableSecretsEngine(path string) error {
+	options := map[string]string{"version": "2"}
+	input := &vault.MountInput{
+		Type:    "kv",
+		Options: options,
+	}
+
+	return client.vc.Sys().Mount(path, input)
+}
+
+func (client *Client) EnableUserPass() error {
+	options := &vault.EnableAuthOptions{
+		Type: "userpass",
+	}
+	return client.vc.Sys().EnableAuthWithOptions("userpass", options)
+}
+
+func (client *Client) AddUser(name string, pass string, policies []string) (string, error) {
+	params := map[string]interface{}{
+		"name":     name,
+		"password": pass,
+		"policies": policies, // the name of the role in Vault that was created with this app's Kubernetes service account bound to it
+	}
+
+	r := client.vc.NewRequest("POST", "/v1/auth/userpass/users/"+name)
+	if err := r.SetJSONBody(params); err != nil {
+		return "", err
+	}
+
+	resp, err := client.vc.RawRequest(r)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		// any 404 indicates k/v v1
+		if resp != nil && resp.StatusCode == 404 {
+			return "", nil
+		}
+		return "", err
+	}
+
+	return "", err
+}
+
+func (client *Client) AddUserAlias() error {
+	return nil
 }
