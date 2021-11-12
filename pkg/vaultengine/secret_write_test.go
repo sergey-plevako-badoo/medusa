@@ -20,15 +20,20 @@ func TestCreateKvEngine(t *testing.T) {
 	}
 }
 
-func TestEnableUserPass(t *testing.T) {
-	err := client.EnableUserPass()
-	if err != nil {
+func TestEnableAuth(t *testing.T) {
+	errU := client.EnableUserPass()
+	if errU != nil {
 		t.Error("Cannot enable userpass Auth method")
+	}
+
+	errK := client.EnableKubernetes()
+	if errK != nil {
+		t.Error("Cannot enable kuber Auth method")
 	}
 }
 
 func TestAddUser(t *testing.T) {
-	_, err := client.AddUser("tester", "tester123", []string{"default"})
+	_, err := client.AddUser("test", "tester", []string{"default"})
 	if err != nil {
 		t.Error("Unable to add a user")
 	}

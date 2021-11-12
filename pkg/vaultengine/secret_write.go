@@ -70,14 +70,20 @@ func (client *Client) EnableUserPass() error {
 	return client.vc.Sys().EnableAuthWithOptions("userpass", options)
 }
 
+func (client *Client) EnableKubernetes() error {
+	options := &vault.EnableAuthOptions{
+		Type: "kubernetes",
+	}
+	return client.vc.Sys().EnableAuthWithOptions("kubernetes", options)
+}
+
 func (client *Client) AddUser(name string, pass string, policies []string) (string, error) {
+	r := client.vc.NewRequest("POST", "/v1/auth/userpass/users/"+name)
 	params := map[string]interface{}{
 		"name":     name,
 		"password": pass,
-		"policies": policies, // the name of the role in Vault that was created with this app's Kubernetes service account bound to it
+		"policies": policies,
 	}
-
-	r := client.vc.NewRequest("POST", "/v1/auth/userpass/users/"+name)
 	if err := r.SetJSONBody(params); err != nil {
 		return "", err
 	}
@@ -86,17 +92,28 @@ func (client *Client) AddUser(name string, pass string, policies []string) (stri
 	if resp != nil {
 		defer resp.Body.Close()
 	}
-	if err != nil {
-		// any 404 indicates k/v v1
-		if resp != nil && resp.StatusCode == 404 {
-			return "", nil
-		}
+
+	r = client.vc.NewRequest("POST", "/v1/auth/userpass/login/"+name)
+	params = map[string]interface{}{
+		"password": pass,
+	}
+	if err := r.SetJSONBody(params); err != nil {
 		return "", err
 	}
+	resp, err = client.vc.RawRequest(r)
+
+	secret, err := vault.ParseSecret(resp.Body)
+	entityId := secret.Auth.EntityID
+
+	r = client.vc.NewRequest("POST", "/v1/identity/entity/id/"+entityId)
+	params = map[string]interface{}{
+		"name":     "ent-dev-" + name,
+		"policies": policies,
+	}
+	if err := r.SetJSONBody(params); err != nil {
+		return "", err
+	}
+	resp, err = client.vc.RawRequest(r)
 
 	return "", err
-}
-
-func (client *Client) AddUserAlias() error {
-	return nil
 }
