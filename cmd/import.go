@@ -15,6 +15,7 @@ func init() {
 	importCmd.PersistentFlags().BoolP("decrypt", "d", false, "Decrypt the Vault data before importing")
 	importCmd.PersistentFlags().StringP("private-key", "p", "", "Location of the RSA private key")
 	importCmd.PersistentFlags().StringP("engine-type", "m", "kv2", "Specify the secret engine type [kv1|kv2]")
+	importCmd.PersistentFlags().BoolP("import-users", "u", false, "Import users to auth/userpass/users")
 }
 
 var importCmd = &cobra.Command{
@@ -32,6 +33,7 @@ var importCmd = &cobra.Command{
 		engineType, _ := cmd.Flags().GetString("engine-type")
 		doDecrypt, _ := cmd.Flags().GetBool("decrypt")
 		privateKey, _ := cmd.Flags().GetString("private-key")
+		importUsers, _ := cmd.Flags().GetBool("import-users")
 
 		client := vaultengine.NewClient(vaultAddr, vaultToken, insecure, namespace)
 		engine, prefix, err := client.MountpathSplitPrefix(path)
@@ -75,11 +77,14 @@ var importCmd = &cobra.Command{
 				return err
 			}
 		}
-
-		// Write the parsed yaml to Vault using the Vault engine
-		for path, value := range parsedYaml {
-			path = prefix + strings.TrimPrefix(path, "/")
-			client.SecretWrite(path, value)
+		if importUsers {
+			client.ImportUsers(parsedYaml)
+		} else {
+			// Write the parsed yaml to Vault using the Vault engine
+			for path, value := range parsedYaml {
+				path = prefix + strings.TrimPrefix(path, "/")
+				client.SecretWrite(path, value)
+			}
 		}
 
 		return nil

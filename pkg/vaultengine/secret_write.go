@@ -3,6 +3,9 @@ package vaultengine
 import (
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
+	"github.com/jonasvinther/medusa/pkg/importer"
+	"reflect"
+	"strings"
 )
 
 // SecretWrite is used for writing data to a Vault instance
@@ -116,4 +119,30 @@ func (client *Client) AddUser(name string, pass string, policies []string) (stri
 	resp, err = client.vc.RawRequest(r)
 
 	return "", err
+}
+
+func parsePolicies(policies interface{}) []string {
+	var out []string
+	rv := reflect.ValueOf(policies)
+	if rv.Kind() == reflect.Slice {
+		for i := 0; i < rv.Len(); i++ {
+			out = append(out, rv.Index(i).Interface().(string))
+		}
+	}
+	return out
+}
+
+func (client *Client) ImportUsers(parsedYaml importer.ParsedYaml) error {
+	for _, user := range parsedYaml {
+		name := strings.Replace(user["name"].(string), "ent-dev-", "", -1)
+
+		policies := parsePolicies(user["policies"])
+
+		_, err := client.AddUser(name, "tester", policies)
+		if err != nil {
+			return fmt.Errorf("unable to import a user: %v", err)
+		}
+	}
+
+	return nil
 }

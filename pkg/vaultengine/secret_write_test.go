@@ -1,10 +1,7 @@
 package vaultengine
 
 import (
-	"fmt"
 	"github.com/jonasvinther/medusa/pkg/importer"
-	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -20,7 +17,7 @@ func init() {
 }
 
 func TestCreateKvEngine(t *testing.T) {
-	err := client.EnableSecretsEngine("test")
+	err := client.EnableSecretsEngine("k8s")
 	if err != nil {
 		t.Error("Unable to add Secrets kv engine")
 	}
@@ -45,17 +42,6 @@ func TestAddUser(t *testing.T) {
 	}
 }
 
-func parsePolicies(policies interface{}) []string {
-	var out []string
-	rv := reflect.ValueOf(policies)
-	if rv.Kind() == reflect.Slice {
-		for i := 0; i < rv.Len(); i++ {
-			out = append(out, rv.Index(i).Interface().(string))
-		}
-	}
-	return out
-}
-
 var usersYaml = []byte(`entity:
   name:
     ent-dev-tester:
@@ -70,16 +56,9 @@ func TestImportUsers(t *testing.T) {
 	if errParse != nil {
 		t.Error("Failed parsing yaml")
 	}
-	for _, user := range parsedYaml {
-		name := strings.Replace(user["name"].(string), "ent-dev-", "", -1)
-		fmt.Println(name)
 
-		policies := parsePolicies(user["policies"])
-		fmt.Println(policies)
-
-		_, err := client.AddUser(name, "tester", policies)
-		if err != nil {
-			t.Error("Unable to add a user")
-		}
+	err := client.ImportUsers(parsedYaml)
+	if err != nil {
+		t.Error("Failed importing user from yaml")
 	}
 }
