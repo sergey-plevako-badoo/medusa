@@ -7,7 +7,8 @@ import (
 )
 
 // SecretRead is used for reading a secret from a Vault instance
-func (client *Client) SecretRead(path string) map[string]interface{} {
+// if readSecrets is false, and secret values will be replaced with an empty string
+func (client *Client) SecretRead(path string, readSecrets bool) map[string]interface{} {
 	infix := "/data/"
 
 	if client.engineType == "kv1" {
@@ -43,6 +44,17 @@ func (client *Client) SecretRead(path string) map[string]interface{} {
 		} else {
 			log.Fatalf("Error while reading secret\nPath:\t%s\nData:\t%#v\n\n", finalPath, secret.Data["data"])
 		}
+	}
+
+	// We don't need secrets values, so we can replace them with an empty string
+	if !readSecrets {
+		mapManaged := make(map[string]interface{}, len(m))
+
+		for i, _ := range m {
+			mapManaged[i] = ""
+		}
+
+		return mapManaged
 	}
 
 	// Some secrets are not in the default key/value format.

@@ -9,11 +9,12 @@ import (
 type Folder map[string]interface{}
 
 // FolderExport will export all subfolders and secrets from a specified location
-func (client *Client) FolderExport(path string) (Folder, error) {
+// if readSecrets is false, the secret values would be replaced with an empty string
+func (client *Client) FolderExport(path string, readSecrets bool) (Folder, error) {
 	baseFolder := make(Folder)
 	subFolders := make(Folder)
 
-	err := client.PathReader(&subFolders, path)
+	err := client.PathReader(&subFolders, path, readSecrets)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +51,7 @@ func buildFolderStructure(parentFolder *Folder, parts []string, subFolders Folde
 }
 
 //PathReader recursively reads the provided path and all subpaths
-func (client *Client) PathReader(parentFolder *Folder, path string) error {
+func (client *Client) PathReader(parentFolder *Folder, path string, readSecrets bool) error {
 	folder, err := client.FolderRead(path)
 	if err != nil {
 		return err
@@ -64,7 +65,7 @@ func (client *Client) PathReader(parentFolder *Folder, path string) error {
 			subFolder := make(Folder)
 			keyName := strings.Replace(strKey, "/", "", -1)
 
-			err = client.PathReader(&subFolder, newPath)
+			err = client.PathReader(&subFolder, newPath, readSecrets)
 			if err != nil {
 				return err
 			}
@@ -76,7 +77,7 @@ func (client *Client) PathReader(parentFolder *Folder, path string) error {
 			}
 			(*parentFolder)[keyName] = subFolder
 		} else {
-			s := client.SecretRead(newPath)
+			s := client.SecretRead(newPath, readSecrets)
 			(*parentFolder)[strKey] = s
 		}
 	}

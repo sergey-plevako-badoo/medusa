@@ -16,6 +16,7 @@ func init() {
 	exportCmd.PersistentFlags().BoolP("encrypt", "e", false, "Encrypt the exported Vault data")
 	exportCmd.PersistentFlags().StringP("public-key", "p", "", "Location of the RSA public key")
 	exportCmd.PersistentFlags().StringP("engine-type", "m", "kv2", "Specify the secret engine type [kv1|kv2]")
+	exportCmd.PersistentFlags().BoolP("export-values", "x", true, "Export secrets values")
 }
 
 var exportCmd = &cobra.Command{
@@ -33,6 +34,7 @@ var exportCmd = &cobra.Command{
 		doEncrypt, _ := cmd.Flags().GetBool("encrypt")
 		exportFormat, _ := cmd.Flags().GetString("format")
 		output, _ := cmd.Flags().GetString("output")
+		exportValues, _ := cmd.Flags().GetBool("export-values")
 
 		client := vaultengine.NewClient(vaultAddr, vaultToken, insecure, namespace)
 		engine, path, err := client.MountpathSplitPrefix(path)
@@ -44,7 +46,7 @@ var exportCmd = &cobra.Command{
 		client.UseEngine(engine)
 		client.SetEngineType(engineType)
 
-		exportData, err := client.FolderExport(path)
+		exportData, err := client.FolderExport(path, exportValues)
 		if err != nil {
 			fmt.Println(err)
 			return err
